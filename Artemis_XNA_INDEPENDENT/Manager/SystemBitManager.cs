@@ -38,42 +38,49 @@ namespace Artemis.Manager
 {
     #region Using statements
 
+    using global::System;
     using global::System.Collections.Generic;
     using Artemis.System;
 
 #if !XBOX && !WINDOWS_PHONE  && !PORTABLE
     using global::System.Numerics;
 #endif
-#if XBOX || WINDOWS_PHONE || PORTABLE
+#if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
     using BigInteger = global::System.Int32;
 #endif
 
     #endregion Using statements
 
     /// <summary>Class SystemBitManager.</summary>
-    internal static class SystemBitManager
+    internal class SystemBitManager
     {
         /// <summary>The system bits.</summary>
-        private static readonly Dictionary<EntitySystem, BigInteger> SystemBits = new Dictionary<EntitySystem, BigInteger>();
+        private readonly Dictionary<EntitySystem, BigInteger> systemBits = new Dictionary<EntitySystem, BigInteger>();
 
         /// <summary>The position.</summary>
-        private static int position;
+        private int position;
 
         /// <summary>Gets the bit-register for the specified entity system.</summary>
         /// <param name="entitySystem">The entity system.</param>
         /// <returns>The bit flag register for the specified system.</returns>
-        public static BigInteger GetBitFor(EntitySystem entitySystem)
+        public BigInteger GetBitFor(EntitySystem entitySystem)
         {
             BigInteger bit;
-            if (SystemBits.TryGetValue(entitySystem, out bit) == false)
+            if (this.systemBits.TryGetValue(entitySystem, out bit) == false)
             {
-#if WINDOWS_PHONE || XBOX || PORTABLE
-                bit = 1 << position;
+#if WINDOWS_PHONE || XBOX || PORTABLE || FORCEINT32
+                if (this.position == 32)
+                {
+                    // bit is going to overflow and become 1 again
+                    throw new InvalidOperationException("EntitySystem instances limit reached: number of EntitySystem instances is restricted to 32 in the current Artemis build.");
+                }
+
+                bit = 1 << this.position;
 #else
-                bit = 1L << position;
+                bit = 1L << this.position;
 #endif
-                ++position;
-                SystemBits.Add(entitySystem, bit);
+                this.position++;
+                this.systemBits.Add(entitySystem, bit);
             }
 
             return bit;

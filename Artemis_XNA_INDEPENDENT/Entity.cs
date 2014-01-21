@@ -43,7 +43,7 @@ namespace Artemis
 #if !XBOX && !WINDOWS_PHONE  && !PORTABLE
     using global::System.Numerics;
 #endif
-#if XBOX || WINDOWS_PHONE || PORTABLE
+#if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
     using BigInteger = global::System.Int32;
 #endif
     using Artemis.Interface;
@@ -143,7 +143,15 @@ namespace Artemis
 
             set
             {
-                this.entityWorld.TagManager.Register(value, this);
+                var oldTag = this.entityWorld.TagManager.GetTagOfEntity(this);
+                if (value != oldTag)
+                {
+                    if(oldTag != null)
+                        this.entityWorld.TagManager.Unregister(this);
+
+                    if(value != null)
+                        this.entityWorld.TagManager.Register(value, this);
+                }
             }
         }
 
@@ -194,17 +202,7 @@ namespace Artemis
         /// <summary>Adds the component.</summary>
         /// <typeparam name="T">The <see langword="Type"/> T.</typeparam>
         /// <param name="component">The component.</param>
-        public void AddComponent<T>(IComponent component) where T : IComponent
-        {
-            Debug.Assert(component != null, "Component must not be null.");
-
-            this.entityManager.AddComponent<T>(this, component);
-        }
-        
-        /// <summary>Adds the component.</summary>
-        /// <typeparam name="T">The <see langword="Type"/> T.</typeparam>
-        /// <param name="component">The component.</param>
-        public void AddComponent<T>(IComponent<T> component) where T : IComponent
+        public void AddComponent<T>(T component) where T : IComponent
         {
             Debug.Assert(component != null, "Component must not be null.");
 
@@ -216,9 +214,21 @@ namespace Artemis
         /// <returns>The added component.</returns>
         public T AddComponentFromPool<T>() where T : ComponentPoolable
         {
-            IComponent component = this.entityWorld.GetComponentFromPool(typeof(T));
-            this.entityManager.AddComponent(this, component);
-            return (T)component;
+            T component = this.entityWorld.GetComponentFromPool<T>();
+            this.entityManager.AddComponent<T>(this, component);
+            return component;
+        }
+
+        /// <summary>Gets the component from pool, runs init delegate, then adds the components to the entity.</summary>
+        /// <typeparam name="T">The <see langword="Type"/> T.</typeparam>
+        /// <returns>The added component.</returns>
+        public void AddComponentFromPool<T>(global::System.Action<T> init) where T : ComponentPoolable
+        {
+            Debug.Assert(init != null, "Init delegate must not be null.");
+
+            T component = this.entityWorld.GetComponentFromPool<T>();
+            init(component);
+            this.entityManager.AddComponent<T>(this, component);
         }
 
         /// <summary>Deletes this instance.</summary>
